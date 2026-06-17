@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Clawd Settings</title>
+  <style>
+    /* ── Clawd palette ─────────────────────────────────────────── */
+    :root {
+      --bg:        #fbf2e6;   /* warm cream backdrop */
+      --bg-card:  #ffffff;
+      --ink:      #3a2415;   /* dark warm brown — outlines & text */
+      --ink-soft: #7a5a3a;
+      --line:     #e9d3b4;
+      --line-strong: #d9b88a;
+      --body:     #f6d3a8;   /* Clawd body cream */
+      --body-deep:#e9b079;
+      --accent:   #d97757;   /* Anthropic orange */
+      --accent-deep: #b8553a;
+      --accent-soft: #f0a07a;
+      --ok:       #4a8a4a;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
+    body {
+      padding: 20px 22px 28px;
+    }
+
+    /* ── Header: pixel Clawd + title ───────────────────────────── */
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 18px;
+      padding-bottom: 14px;
+      border-bottom: 2px dashed var(--line-strong);
+    }
+
+    .header .pet {
+      width: 44px;
+      height: 44px;
+      flex-shrink: 0;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+
+    .header h2 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: 0.2px;
+      color: var(--ink);
+    }
+
+    .header .sub {
+      font-size: 11px;
+      color: var(--ink-soft);
+      margin-top: 2px;
+    }
+
+    /* ── Card ──────────────────────────────────────────────────── */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--line-strong);
+      border-radius: 10px;
+      padding: 16px 16px 14px;
+      box-shadow: 0 1px 0 rgba(58, 36, 21, 0.04);
+      margin-bottom: 14px;
+    }
+
+    .card-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--accent-deep);
+      margin: 0 0 10px;
+    }
+
+    /* ── Form ──────────────────────────────────────────────────── */
+    label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--ink-soft);
+      margin: 0 0 4px;
+      letter-spacing: 0.3px;
+    }
+
+    input, textarea, select {
+      width: 100%;
+      padding: 7px 10px;
+      margin-bottom: 12px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fffaf2;
+      color: var(--ink);
+      font-family: inherit;
+      font-size: 13px;
+      transition: border-color 0.12s, box-shadow 0.12s, background 0.12s;
+    }
+
+    input:focus, textarea:focus, select:focus {
+      outline: none;
+      border-color: var(--accent);
+      background: #ffffff;
+      box-shadow: 0 0 0 3px rgba(217, 119, 87, 0.18);
+    }
+
+    textarea {
+      height: 96px;
+      resize: vertical;
+      font-family: ui-monospace, Menlo, monospace;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    /* Pair Base URL + Model side by side */
+    .row {
+      display: flex;
+      gap: 10px;
+    }
+    .row > div { flex: 1; }
+
+    /* ── Save button + status ──────────────────────────────────── */
+    .actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 4px;
+    }
+
+    button#save {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      padding: 9px 22px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+      box-shadow: 0 1px 0 var(--accent-deep);
+      transition: background 0.12s, transform 0.06s, box-shadow 0.12s;
+    }
+    button#save:hover  { background: var(--accent-deep); }
+    button#save:active { transform: translateY(1px); box-shadow: none; }
+
+    #status {
+      font-size: 12px;
+      color: var(--ok);
+      font-weight: 600;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    #status.show { opacity: 1; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <!-- Inline SVG Clawd (matches the sprite art) -->
+    <svg class="pet" viewBox="0 0 22 22" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">
+      <!-- tuft -->
+      <rect x="10" y="2" width="2" height="1" fill="#d97757"/>
+      <rect x="9"  y="3" width="4" height="1" fill="#d97757"/>
+      <rect x="9"  y="4" width="5" height="1" fill="#d97757"/>
+      <!-- body fill -->
+      <rect x="6"  y="6" width="10" height="1" fill="#f6d3a8"/>
+      <rect x="5"  y="7" width="12" height="1" fill="#f6d3a8"/>
+      <rect x="4"  y="8" width="14" height="7" fill="#f6d3a8"/>
+      <rect x="5"  y="15" width="12" height="1" fill="#e9b079"/>
+      <rect x="6"  y="16" width="10" height="1" fill="#e9b079"/>
+      <!-- highlight -->
+      <rect x="6" y="7" width="2" height="1" fill="#fce8cb"/>
+      <rect x="5" y="8" width="2" height="1" fill="#fce8cb"/>
+      <!-- outline -->
+      <rect x="8"  y="5" width="6" height="1" fill="#3a2415"/>
+      <rect x="6"  y="6" width="2" height="1" fill="#3a2415"/>
+      <rect x="14" y="6" width="2" height="1" fill="#3a2415"/>
+      <rect x="5"  y="7" width="1" height="1" fill="#3a2415"/>
+      <rect x="16" y="7" width="1" height="1" fill="#3a2415"/>
+      <rect x="4"  y="8" width="1" height="7" fill="#3a2415"/>
+      <rect x="17" y="8" width="1" height="7" fill="#3a2415"/>
+      <rect x="5" y="15" width="1" height="1" fill="#3a2415"/>
+      <rect x="16" y="15" width="1" height="1" fill="#3a2415"/>
+      <rect x="6" y="16" width="2" height="1" fill="#3a2415"/>
+      <rect x="14" y="16" width="2" height="1" fill="#3a2415"/>
+      <rect x="8" y="17" width="6" height="1" fill="#3a2415"/>
+      <!-- eyes -->
+      <rect x="7"  y="10" width="2" height="2" fill="#1b1208"/>
+      <rect x="13" y="10" width="2" height="2" fill="#1b1208"/>
+      <rect x="8"  y="10" width="1" height="1" fill="#ffffff"/>
+      <rect x="14" y="10" width="1" height="1" fill="#ffffff"/>
+      <!-- smile -->
+      <rect x="8"  y="12" width="1" height="1" fill="#3a2415"/>
+      <rect x="13" y="12" width="1" height="1" fill="#3a2415"/>
+      <rect x="9"  y="13" width="4" height="1" fill="#3a2415"/>
+      <!-- feet -->
+      <rect x="6"  y="18" width="3" height="1" fill="#d97757"/>
+      <rect x="13" y="18" width="3" height="1" fill="#d97757"/>
+      <rect x="6"  y="19" width="3" height="1" fill="#7a5a3a"/>
+      <rect x="13" y="19" width="3" height="1" fill="#7a5a3a"/>
+    </svg>
+    <div>
+      <h2>Clawd Settings</h2>
+      <div class="sub">Tune how your desktop companion behaves.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Identity</div>
+    <label for="pet_name">Pet Name</label>
+    <input id="pet_name" type="text" placeholder="Clawd" />
+  </div>
+
+  <div class="card">
+    <div class="card-title">Model & API</div>
+    <div class="row">
+      <div>
+        <label for="base_url">API Base URL</label>
+        <input id="base_url" type="text" placeholder="https://api.openai.com/v1" />
+      </div>
+      <div>
+        <label for="model">Model</label>
+        <input id="model" type="text" placeholder="gpt-4o" />
+      </div>
+    </div>
+    <label for="api_key">API Key</label>
+    <input id="api_key" type="password" placeholder="sk-…" />
+  </div>
+
+  <div class="card">
+    <div class="card-title">Behavior</div>
+    <label for="behavior_interval_seconds">Behavior Interval (seconds)</label>
+    <input id="behavior_interval_seconds" type="number" min="5" max="300" />
+    <label for="system_prompt">System Prompt</label>
+    <textarea id="system_prompt" placeholder="Describe Clawd's personality…"></textarea>
+  </div>
+
+  <div class="actions">
+    <button id="save">Save</button>
+    <div id="status"></div>
+  </div>
+
+  <script src="settings.js"></script>
+</body>
+</html>

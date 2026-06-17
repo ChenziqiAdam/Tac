@@ -1,0 +1,17 @@
+{
+  "name": "tac",
+  "version": "0.1.0",
+  "description": "LLM-powered desktop pet for macOS",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "generate-sprites": "node tools/generate-sprites.js",
+    "generate-tray-icon": "node tools/generate-tray-icon.js"
+  },
+  "dependencies": {
+    "electron": "^30.0.0"
+  },
+  "devDependencies": {
+    "canvas": "^2.11.2"
+  }
+}

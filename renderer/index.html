@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 120px; height: 100%; }
+    body { background: transparent; overflow: visible; user-select: none; font-family: monospace; position: relative; }
+    #canvas { display: block; position: absolute; bottom: 0; left: 36px; }
+
+    #bubble {
+      display: none;
+      position: absolute;
+      bottom: 84px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(255,255,255,0.95);
+      border: 2px solid #4A90D9;
+      border-radius: 8px;
+      padding: 6px 10px;
+      font-size: 11px;
+      color: #1a1a2e;
+      max-width: 180px;
+      white-space: normal;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    #chat-input-wrap {
+      display: none;
+      position: absolute;
+      bottom: 84px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 20;
+    }
+
+    #chat-input {
+      border: 2px solid #4A90D9;
+      border-radius: 6px;
+      padding: 3px 6px;
+      font-size: 10px;
+      font-family: monospace;
+      width: 110px;
+      outline: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="bubble"></div>
+  <div id="chat-input-wrap">
+    <input id="chat-input" type="text" placeholder="Say something..." />
+  </div>
+  <canvas id="canvas"></canvas>
+  <script src="renderer.js"></script>
+</body>
+</html>
