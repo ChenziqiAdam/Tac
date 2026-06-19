@@ -3,7 +3,7 @@
 An LLM-powered desktop pet for macOS. Tac lives on your screen, watches what you do, and occasionally walks around, reacts, or chats with you.
 
 <p align="center">
-  <img src="assets/sprites/idle.png" width="96" alt="Tac idle" />
+  <img src="assets/sprites/idle.gif" width="96" alt="Tac idle" />
 </p>
 
 ## Features
@@ -37,6 +37,19 @@ An LLM-powered desktop pet for macOS. Tac lives on your screen, watches what you
    npm start
    ```
 
+## Privacy
+
+Tac builds context for the LLM from your local machine and sends it to **the LLM
+endpoint you configure** (`base_url` in your config). This context includes:
+
+- the name of your currently active app and its front window title
+- the time of day
+- recent chat messages between you and Tac
+
+Nothing is sent anywhere else, and nothing is sent until you provide an API key
+and `base_url`. Choose an endpoint you trust — your data is handled according to
+that provider's policy.
+
 ## Roadmap
 
 - [x] Walk left/right across the screen autonomously
@@ -50,3 +63,7 @@ An LLM-powered desktop pet for macOS. Tac lives on your screen, watches what you
 - [ ] Persistent memory across sessions
 - [ ] More animations and emotional states
 - [ ] Windows/Linux support
+
+## License
+
+[MIT](LICENSE) © Adam Chen

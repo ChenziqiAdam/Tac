@@ -28,6 +28,7 @@ class LLMClient {
           port: url.port,
           path: url.pathname,
           method: 'POST',
+          timeout: (this.config.request_timeout_seconds || 30) * 1000,
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${this.config.api_key}`,
@@ -64,6 +65,9 @@ class LLMClient {
           });
         }
       );
+      req.on('timeout', () => {
+        req.destroy(new Error('request timed out'));
+      });
       req.on('error', reject);
       req.write(body);
       req.end();

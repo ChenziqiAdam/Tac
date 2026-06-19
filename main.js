@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, Menu, Tray, screen } = require('electron');
+const { app, BrowserWindow, ipcMain, Menu, Tray, screen, dialog, shell } = require('electron');
 const path = require('path');
 const LLMClient = require('./llm/client.js');
 const { buildContext, startActiveAppPolling } = require('./behavior/context.js');
@@ -102,6 +102,14 @@ app.whenReady().then(() => {
   const llm = new LLMClient(config);
   const chatHistory = [];
 
+  // When the LLM can't be reached or returns garbage, Tac goes to sleep with a
+  // brief message instead of silently freezing.
+  function showError(e, bubble) {
+    console.error('LLM error:', e.message);
+    petWindow.webContents.send('pet-action', { state: 'sleep' });
+    petWindow.webContents.send('pet-message', bubble);
+  }
+
   function applyResponse(response) {
     if (response.action === 'walk' && response.target_x != null && response.target_y != null) {
       walkTarget = {
@@ -129,14 +137,40 @@ app.whenReady().then(() => {
           if (chatHistory.length > 20) chatHistory.splice(0, chatHistory.length - 20);
         }
       } catch (e) {
-        console.error('LLM error:', e.message);
+        showError(e, 'zzz… can\'t reach my brain');
       }
     },
   });
 
-  startActiveAppPolling((appName) => {
-    loop.notifyAppChange(appName);
-  });
+  startActiveAppPolling(
+    (appName) => {
+      loop.notifyAppChange(appName);
+    },
+    () => {
+      // osascript can't read the active app without Accessibility permission.
+      // Tac still runs, but loses app-awareness until the user grants it.
+      dialog
+        .showMessageBox({
+          type: 'info',
+          title: 'Accessibility permission needed',
+          message: 'Tac needs Accessibility permission to notice which app you are using.',
+          detail:
+            'Without it, Tac still works but can\'t react to your active app. ' +
+            'Open System Settings → Privacy & Security → Accessibility and enable the app ' +
+            '(Terminal or Electron if you launched with "npm start").',
+          buttons: ['Open System Settings', 'Later'],
+          defaultId: 0,
+          cancelId: 1,
+        })
+        .then(({ response }) => {
+          if (response === 0) {
+            shell.openExternal(
+              'x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility'
+            );
+          }
+        });
+    }
+  );
 
   loop.start();
 
@@ -172,7 +206,7 @@ app.whenReady().then(() => {
         chatHistory.push({ role: 'assistant', content: response.message });
       }
     } catch (e) {
-      console.error('LLM chat error:', e.message);
+      showError(e, 'zzz… I couldn\'t answer just now');
     }
   });
 
@@ -195,6 +229,9 @@ app.whenReady().then(() => {
     const merged = { ...current, ...updates };
     fs.mkdirSync(path.dirname(CONFIG_PATH), { recursive: true });
     fs.writeFileSync(CONFIG_PATH, JSON.stringify(merged, null, 2));
+    // Apply changes live so the user doesn't need to restart after first-run setup.
+    llm.config = merged;
+    loop.setInterval((merged.behavior_interval_seconds || 20) * 1000);
   });
 
   const { nativeImage } = require('electron');
@@ -209,6 +246,12 @@ app.whenReady().then(() => {
   ]);
   tray.setContextMenu(contextMenu);
   tray.setToolTip('Tac');
+
+  // First run: if no API key is configured, open Settings so the user can set
+  // one without hand-editing config.json.
+  if (!config.api_key) {
+    createSettingsWindow();
+  }
 
   ipcMain.on('show-pet-menu', (event) => {
     const menu = Menu.buildFromTemplate([

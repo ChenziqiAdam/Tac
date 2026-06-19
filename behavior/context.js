@@ -13,12 +13,31 @@ const OSASCRIPT = `osascript -e '
   end tell
 '`;
 
-function startActiveAppPolling(onChange) {
+// macOS returns these when the controlling process lacks Accessibility
+// permission. We only want to surface this once, not on every poll.
+function isPermissionError(err) {
+  const msg = `${err.message || ''} ${err.stderr || ''}`.toLowerCase();
+  return (
+    msg.includes('not allowed') ||
+    msg.includes('assistive access') ||
+    msg.includes('-1719') ||
+    msg.includes('-25211')
+  );
+}
+
+function startActiveAppPolling(onChange, onPermissionError) {
   let lastAppName = null;
+  let permissionErrorReported = false;
 
   setInterval(() => {
-    exec(OSASCRIPT, { timeout: 2000 }, (err, stdout) => {
-      if (err) return;
+    exec(OSASCRIPT, { timeout: 2000 }, (err, stdout, stderr) => {
+      if (err) {
+        if (!permissionErrorReported && isPermissionError({ ...err, stderr })) {
+          permissionErrorReported = true;
+          if (onPermissionError) onPermissionError();
+        }
+        return;
+      }
       const [appName, windowTitle] = stdout.trim().split('|');
       _cachedApp = { appName: appName || 'Unknown', windowTitle: windowTitle || '' };
       if (onChange && appName !== lastAppName) {

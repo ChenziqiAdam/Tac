@@ -20,6 +20,15 @@ class BehaviorLoop {
     if (this._timerHandle) clearInterval(this._timerHandle);
   }
 
+  setInterval(intervalMs) {
+    if (intervalMs === this.intervalMs) return;
+    this.intervalMs = intervalMs;
+    if (this._timerHandle) {
+      clearInterval(this._timerHandle);
+      this.start();
+    }
+  }
+
   notifyAppChange(appName) {
     if (appName === this._lastAppName) return;
     this._lastAppName = appName;
