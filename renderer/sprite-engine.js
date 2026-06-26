@@ -1,3 +1,13 @@
+// Mood → translucent rgba tint painted over the sprite's opaque pixels.
+// neutral has no tint. Alpha kept low so the pixel art still reads clearly.
+const MOODS = {
+  neutral: null,
+  happy: 'rgba(255, 205, 90, 0.16)',
+  curious: 'rgba(120, 180, 255, 0.16)',
+  sleepy: 'rgba(150, 130, 200, 0.20)',
+  excited: 'rgba(255, 140, 60, 0.18)',
+};
+
 class SpriteEngine {
   constructor(canvas, ctx) {
     this.canvas = canvas;
@@ -7,6 +17,11 @@ class SpriteEngine {
     this.currentFrame = 0;
     this.fps = 4;
     this.lastFrameTime = 0;
+    this.tint = null;
+  }
+
+  setMood(mood) {
+    this.tint = Object.prototype.hasOwnProperty.call(MOODS, mood) ? MOODS[mood] : null;
   }
 
   async loadAll(states) {
@@ -56,7 +71,18 @@ class SpriteEngine {
       0, 0,
       this.canvas.width, this.canvas.height
     );
+
+    // Mood tint: recolor only the sprite's opaque pixels, leaving the
+    // transparent background (and the mouse-passthrough hit test) untouched.
+    if (this.tint) {
+      this.ctx.save();
+      this.ctx.globalCompositeOperation = 'source-atop';
+      this.ctx.fillStyle = this.tint;
+      this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+      this.ctx.restore();
+    }
   }
 }
 
 module.exports = SpriteEngine;
+module.exports.MOODS = MOODS;

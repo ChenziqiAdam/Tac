@@ -52,7 +52,7 @@ function getActiveApp() {
   return _cachedApp;
 }
 
-function buildContext({ trigger, userMessage, chatHistory, screenWidth, screenHeight, petX, petY }) {
+function buildContext({ trigger, userMessage, chatHistory, summary, screenWidth, screenHeight, petX, petY }) {
   const { appName, windowTitle } = getActiveApp();
   const now = new Date();
   const timeOfDay = now.toTimeString().slice(0, 5);
@@ -64,6 +64,7 @@ function buildContext({ trigger, userMessage, chatHistory, screenWidth, screenHe
     trigger,
     screen: { width: screenWidth || 1920, height: screenHeight || 1080 },
     pet_position: { x: petX || 0, y: petY || 0 },
+    ...(summary ? { memory_summary: summary } : {}),
     ...(userMessage ? { user_message: userMessage } : {}),
   };
 }

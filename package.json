@@ -2,16 +2,54 @@
   "name": "tac",
   "version": "0.1.0",
   "description": "LLM-powered desktop pet for macOS",
+  "author": "Adam Chen",
+  "license": "MIT",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
+    "test": "node tools/selftest.js",
     "generate-sprites": "node tools/generate-sprites.js",
-    "generate-tray-icon": "node tools/generate-tray-icon.js"
-  },
-  "dependencies": {
-    "electron": "^30.0.0"
+    "generate-tray-icon": "node tools/generate-tray-icon.js",
+    "icns": "bash tools/make-icns.sh",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder --mac"
   },
   "devDependencies": {
-    "canvas": "^2.11.2"
+    "canvas": "^2.11.2",
+    "electron": "^30.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.adamchen.tac",
+    "productName": "Tac",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "renderer/**/*",
+      "settings/**/*",
+      "behavior/**/*",
+      "llm/**/*",
+      "assets/**/*",
+      "!tools/**/*",
+      "!**/*.map"
+    ],
+    "mac": {
+      "category": "public.app-category.entertainment",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["arm64", "x64"]
+        }
+      ],
+      "icon": "assets/icon.icns",
+      "identity": null,
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false,
+      "extendInfo": {
+        "NSAppleEventsUsageDescription": "Tac needs to see which app you are using so it can react to your activity."
+      }
+    }
   }
 }

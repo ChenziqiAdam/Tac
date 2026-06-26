@@ -230,6 +230,33 @@ function drawFace(frame, top, face = 'open') {
     drawRect(frame, er + 3, 15, er + 4, 16, O);
     put(frame, er + 3, 15, K); put(frame, er + 3, 16, K);
     put(frame, er + 4, 15, K); put(frame, er + 4, 16, K);
+  } else if (face === 'curious') {
+    // inquisitive: one eye slightly raised, a small tilted brow, tiny 'o' interest mouth
+    drawRect(frame, er, leftC, er + 1, leftC + 1, K);
+    drawRect(frame, er - 1, rightC, er, rightC + 1, K); // right eye raised
+    put(frame, er, leftC + 1, R);
+    put(frame, er - 1, rightC + 1, R);
+    // raised brow over right eye
+    put(frame, er - 2, rightC, O);
+    put(frame, er - 2, rightC + 1, O);
+    // small curious mouth
+    put(frame, er + 3, 15, O);
+    put(frame, er + 3, 16, O);
+    put(frame, er + 2, 16, O);
+  } else if (face === 'excited') {
+    // wide sparkly eyes + open happy mouth
+    drawRect(frame, er - 1, leftC, er + 1, leftC + 1, K);
+    drawRect(frame, er - 1, rightC, er + 1, rightC + 1, K);
+    put(frame, er - 1, leftC, R);
+    put(frame, er - 1, rightC, R);
+    put(frame, er + 1, leftC + 1, R);
+    put(frame, er + 1, rightC + 1, R);
+    put(frame, er + 2, 12, P);
+    put(frame, er + 2, 20, P);
+    // big open smile
+    drawRect(frame, er + 3, 14, er + 4, 17, O);
+    put(frame, er + 4, 15, R); put(frame, er + 4, 16, R);
+    put(frame, er + 2, 13, O); put(frame, er + 2, 18, O);
   } else if (face === 'talk-open') {
     // open eyes + open mouth
     drawRect(frame, er, leftC,  er + 1, leftC + 1,  K);
@@ -463,6 +490,24 @@ function makeReactFrame(intensity = 1) {
   return f;
 }
 
+// Mood → which face the idle animation wears. The runtime also applies a color
+// tint over the whole sprite, so these faces just add personality on top.
+const MOOD_FACE = {
+  happy: 'happy',
+  curious: 'curious',
+  sleepy: 'closed',
+  excited: 'excited',
+};
+
+function makeMoodIdle(face) {
+  return [
+    makeIdleFrame(0, face, 0),
+    makeIdleFrame(1, face, 0),
+    makeIdleFrame(0, face, 0),
+    makeIdleFrame(1, face, 0),
+  ];
+}
+
 // ─── STATES ─────────────────────────────────────────────────────────────────
 const STATES = {
   'idle': [
@@ -509,6 +554,11 @@ const STATES = {
 };
 
 STATES['walk-left'] = STATES['walk-right'].map(mirrorFrame);
+
+// Per-mood idle sheets (idle-happy, idle-curious, idle-sleepy, idle-excited).
+for (const [mood, face] of Object.entries(MOOD_FACE)) {
+  STATES[`idle-${mood}`] = makeMoodIdle(face);
+}
 
 // ─── RENDER ─────────────────────────────────────────────────────────────────
 function renderFrame(ctx, frame, offsetX) {

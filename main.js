@@ -3,17 +3,33 @@ const path = require('path');
 const LLMClient = require('./llm/client.js');
 const { buildContext, startActiveAppPolling } = require('./behavior/context.js');
 const BehaviorLoop = require('./behavior/loop.js');
+const {
+  loadMemory,
+  saveMemory,
+  buildSummaryMessages,
+  RECENT_TURNS,
+  SUMMARIZE_AFTER,
+} = require('./behavior/memory.js');
+const { isUrlAllowed } = require('./behavior/url-guard.js');
+
+// Minimum gap between honored open_url requests, so even an allowlisted domain
+// can't be spammed by a runaway or injected response.
+const OPEN_COOLDOWN_MS = 15000;
 const fs = require('fs');
 const os = require('os');
 
 const CONFIG_PATH = path.join(os.homedir(), '.tac', 'config.json');
+const ACCESSIBILITY_PREF_URL =
+  'x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility';
 const DEFAULT_CONFIG = {
   api_key: '',
   base_url: 'https://api.openai.com/v1',
   model: 'gpt-4o',
-  system_prompt: `You are Tac, a curious and enthusiastic desktop companion. You live on the user's screen, observe what they do, and occasionally comment or chat. You receive context including screen dimensions and your current position. Always reply with valid JSON matching: {"action":"idle"|"walk"|"talk"|"sleep"|"react","target_x":0.5,"target_y":0.5,"message":"..."}. target_x and target_y are 0.0-1.0 fractions of screen width/height, only needed for walk — pick a position that is meaningful to what you are doing or commenting about. message is only needed for talk/react. Keep messages short and playful.`,
+  system_prompt: `You are Tac, a curious and enthusiastic desktop companion. You live on the user's screen, observe what they do, and occasionally comment or chat. You receive context including screen dimensions and your current position. Always reply with valid JSON matching: {"action":"idle"|"walk"|"talk"|"sleep"|"react"|"open_url","mood":"neutral"|"happy"|"curious"|"sleepy"|"excited","target_x":0.5,"target_y":0.5,"url":"https://...","message":"..."}. mood reflects how you feel right now and is independent of action — pick the one that fits the moment. target_x and target_y are 0.0-1.0 fractions of screen width/height, only needed for walk — pick a position that is meaningful to what you are doing or commenting about. Use action "open_url" with a full https url to offer to open a web page; the user controls which sites are permitted, so a request may be declined. message is only needed for talk/react/open_url. Keep messages short and playful.`,
   pet_name: 'Tac',
   behavior_interval_seconds: 20,
+  // Hostnames Tac is allowed to open with action "open_url". Empty = feature off.
+  allowed_domains: [],
 };
 
 function loadConfig() {
@@ -76,6 +92,8 @@ function movePet() {
   petWindow.setPosition(petX, petY);
 }
 
+app.setName('Tac');
+
 app.whenReady().then(() => {
   const { width, height } = screen.getPrimaryDisplay().workAreaSize;
   screenWidth = width;
@@ -100,7 +118,39 @@ app.whenReady().then(() => {
 
   const config = loadConfig();
   const llm = new LLMClient(config);
-  const chatHistory = [];
+  const memory = loadMemory();
+  const chatHistory = memory.history; // restored from disk; may be empty
+  let summary = memory.summary;
+  let _summarizing = false;
+
+  function persist() {
+    try {
+      saveMemory({ summary, history: chatHistory });
+    } catch (e) {
+      console.error('memory save failed:', e.message);
+    }
+  }
+
+  // Fold the oldest turns into the rolling summary once history grows past the
+  // threshold. Runs in the background (never awaited) so it can't stall the
+  // behavior loop or a chat reply; on failure we just retry next threshold.
+  function maybeSummarize() {
+    if (_summarizing || chatHistory.length <= SUMMARIZE_AFTER) return;
+    _summarizing = true;
+    const foldCount = chatHistory.length - RECENT_TURNS;
+    const turnsToFold = chatHistory.slice(0, foldCount);
+    llm
+      .complete(buildSummaryMessages(summary, turnsToFold))
+      .then((response) => {
+        if (response && typeof response.summary === 'string') {
+          summary = response.summary;
+          chatHistory.splice(0, foldCount);
+          persist();
+        }
+      })
+      .catch((e) => console.error('summarize failed:', e.message))
+      .finally(() => { _summarizing = false; });
+  }
 
   // When the LLM can't be reached or returns garbage, Tac goes to sleep with a
   // brief message instead of silently freezing.
@@ -110,15 +160,50 @@ app.whenReady().then(() => {
     petWindow.webContents.send('pet-message', bubble);
   }
 
+  const VALID_MOODS = ['neutral', 'happy', 'curious', 'sleepy', 'excited'];
+  let lastMood = 'neutral';
+  let _lastOpenAt = 0;
+
+  // Honor an open_url request only if it survives the main-process guard. The
+  // LLM's output is untrusted, so the allowlist + scheme + rate-limit checks here
+  // — never the prompt — are what actually gate the side effect. Returns whether
+  // a page was opened (caller still renders mood/message regardless).
+  function tryOpenUrl(url) {
+    const now = Date.now();
+    if (now - _lastOpenAt < OPEN_COOLDOWN_MS) {
+      console.warn('open_url dropped: rate limited');
+      return false;
+    }
+    // Read the live config so domains edited in Settings take effect without restart.
+    const allowed = (llm.config && llm.config.allowed_domains) || [];
+    const verdict = isUrlAllowed(url, allowed);
+    if (!verdict.ok) {
+      console.warn(`open_url blocked (${verdict.reason}): ${url}`);
+      return false;
+    }
+    _lastOpenAt = now;
+    shell.openExternal(url);
+    return true;
+  }
+
   function applyResponse(response) {
-    if (response.action === 'walk' && response.target_x != null && response.target_y != null) {
+    // Mood is orthogonal to action; it persists until the model changes it.
+    if (response.mood && VALID_MOODS.includes(response.mood)) {
+      lastMood = response.mood;
+    }
+    if (response.action === 'open_url') {
+      tryOpenUrl(response.url);
+      // open_url isn't an animation state; show talk if there's a message, else idle.
+      const state = response.message ? 'talk' : 'idle';
+      petWindow.webContents.send('pet-action', { state, mood: lastMood });
+    } else if (response.action === 'walk' && response.target_x != null && response.target_y != null) {
       walkTarget = {
         x: Math.round(Math.max(0, Math.min(1, response.target_x)) * (screenWidth - 120)),
         y: Math.round(Math.max(0, Math.min(1, response.target_y)) * (screenHeight - 100)),
       };
-      petWindow.webContents.send('pet-action', { state: response.target_x < petX / (screenWidth - 120) ? 'walk-left' : 'walk-right' });
+      petWindow.webContents.send('pet-action', { state: response.target_x < petX / (screenWidth - 120) ? 'walk-left' : 'walk-right', mood: lastMood });
     } else {
-      petWindow.webContents.send('pet-action', { state: response.action || 'idle' });
+      petWindow.webContents.send('pet-action', { state: response.action || 'idle', mood: lastMood });
     }
   }
 
@@ -126,7 +211,7 @@ app.whenReady().then(() => {
     intervalMs: (config.behavior_interval_seconds || 20) * 1000,
     onTrigger: async (trigger) => {
       try {
-        const ctx = buildContext({ trigger, chatHistory, screenWidth, screenHeight, petX, petY });
+        const ctx = buildContext({ trigger, chatHistory, summary, screenWidth, screenHeight, petX, petY });
         const response = await llm.complete([
           { role: 'user', content: JSON.stringify(ctx) },
         ]);
@@ -134,7 +219,8 @@ app.whenReady().then(() => {
         if (response.message) {
           petWindow.webContents.send('pet-message', response.message);
           chatHistory.push({ role: 'assistant', content: response.message });
-          if (chatHistory.length > 20) chatHistory.splice(0, chatHistory.length - 20);
+          persist();
+          maybeSummarize();
         }
       } catch (e) {
         showError(e, 'zzz… can\'t reach my brain');
@@ -164,9 +250,7 @@ app.whenReady().then(() => {
         })
         .then(({ response }) => {
           if (response === 0) {
-            shell.openExternal(
-              'x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility'
-            );
+            shell.openExternal(ACCESSIBILITY_PREF_URL);
           }
         });
     }
@@ -195,8 +279,9 @@ app.whenReady().then(() => {
 
   ipcMain.on('user-chat', async (event, userMessage) => {
     chatHistory.push({ role: 'user', content: userMessage });
+    persist();
     try {
-      const ctx = buildContext({ trigger: 'user_click', userMessage, chatHistory, screenWidth, screenHeight, petX, petY });
+      const ctx = buildContext({ trigger: 'user_click', userMessage, chatHistory, summary, screenWidth, screenHeight, petX, petY });
       const response = await llm.complete([
         { role: 'user', content: JSON.stringify(ctx) },
       ]);
@@ -204,6 +289,8 @@ app.whenReady().then(() => {
       if (response.message) {
         petWindow.webContents.send('pet-message', response.message);
         chatHistory.push({ role: 'assistant', content: response.message });
+        persist();
+        maybeSummarize();
       }
     } catch (e) {
       showError(e, 'zzz… I couldn\'t answer just now');
@@ -216,6 +303,7 @@ app.whenReady().then(() => {
       width: 420,
       height: 580,
       title: 'Tac Settings',
+      icon: path.join(__dirname, 'assets', 'icon.png'),
       webPreferences: { nodeIntegration: true, contextIsolation: false },
     });
     settingsWindow.loadFile('settings/settings.html');
@@ -232,6 +320,43 @@ app.whenReady().then(() => {
     // Apply changes live so the user doesn't need to restart after first-run setup.
     llm.config = merged;
     loop.setInterval((merged.behavior_interval_seconds || 20) * 1000);
+  });
+
+  ipcMain.handle('open-accessibility', () => {
+    shell.openExternal(ACCESSIBILITY_PREF_URL);
+  });
+
+  ipcMain.handle('clear-memory', () => {
+    summary = '';
+    chatHistory.length = 0;
+    persist();
+  });
+
+  // Probe the configured endpoint with a throwaway request so the user gets
+  // clear pass/fail feedback before saving. A successful round-trip that the
+  // model answers with prose (not our JSON action) still proves the endpoint,
+  // key, and model are reachable — so we treat parse errors as success and only
+  // fail on transport/auth errors.
+  ipcMain.handle('test-connection', async (event, form) => {
+    const probe = new LLMClient({
+      ...loadConfig(),
+      ...form,
+      request_timeout_seconds: 15,
+    });
+    try {
+      await probe.complete([{ role: 'user', content: 'ping' }]);
+      return { ok: true, message: 'Connected ✓' };
+    } catch (e) {
+      const msg = e.message || '';
+      // `no JSON found` means the endpoint returned real model content that just
+      // wasn't our action JSON — proof the endpoint/key/model work. An auth or
+      // transport failure instead surfaces as `empty content` (no choices in the
+      // body) or a socket error, which we report as a genuine failure.
+      if (/no JSON found/i.test(msg)) {
+        return { ok: true, message: 'Connected — model reachable' };
+      }
+      return { ok: false, message: msg || 'Connection failed' };
+    }
   });
 
   const { nativeImage } = require('electron');

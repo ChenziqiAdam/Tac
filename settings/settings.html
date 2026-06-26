@@ -2,9 +2,9 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Clawd Settings</title>
+  <title>Tac Settings</title>
   <style>
-    /* ── Clawd palette ─────────────────────────────────────────── */
+    /* ── Tac palette ───────────────────────────────────────────── */
     :root {
       --bg:        #fbf2e6;   /* warm cream backdrop */
       --bg-card:  #ffffff;
@@ -12,7 +12,7 @@
       --ink-soft: #7a5a3a;
       --line:     #e9d3b4;
       --line-strong: #d9b88a;
-      --body:     #f6d3a8;   /* Clawd body cream */
+      --body:     #f6d3a8;   /* Tac body cream */
       --body-deep:#e9b079;
       --accent:   #d97757;   /* Anthropic orange */
       --accent-deep: #b8553a;
@@ -164,11 +164,49 @@
       transition: opacity 0.2s;
     }
     #status.show { opacity: 1; }
+
+    /* ── Secondary button (Test connection / Open Accessibility) ─── */
+    button.secondary {
+      background: #fffaf2;
+      color: var(--accent-deep);
+      border: 1px solid var(--line-strong);
+      padding: 7px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      font-family: inherit;
+      letter-spacing: 0.3px;
+      transition: background 0.12s, border-color 0.12s;
+    }
+    button.secondary:hover  { background: #fff; border-color: var(--accent); }
+    button.secondary:active { transform: translateY(1px); }
+
+    .test-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 2px;
+    }
+
+    #test-status {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--ok);
+    }
+    #test-status.err { color: var(--accent-deep); }
+
+    .hint {
+      font-size: 11px;
+      color: var(--ink-soft);
+      line-height: 1.45;
+      margin: 0 0 10px;
+    }
   </style>
 </head>
 <body>
   <div class="header">
-    <!-- Inline SVG Clawd (matches the sprite art) -->
+    <!-- Inline SVG Tac (matches the sprite art) -->
     <svg class="pet" viewBox="0 0 22 22" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">
       <!-- tuft -->
       <rect x="10" y="2" width="2" height="1" fill="#d97757"/>
@@ -212,7 +250,7 @@
       <rect x="13" y="19" width="3" height="1" fill="#7a5a3a"/>
     </svg>
     <div>
-      <h2>Clawd Settings</h2>
+      <h2>Tac Settings</h2>
       <div class="sub">Tune how your desktop companion behaves.</div>
     </div>
   </div>
@@ -220,7 +258,7 @@
   <div class="card">
     <div class="card-title">Identity</div>
     <label for="pet_name">Pet Name</label>
-    <input id="pet_name" type="text" placeholder="Clawd" />
+    <input id="pet_name" type="text" placeholder="Tac" />
   </div>
 
   <div class="card">
@@ -237,6 +275,31 @@
     </div>
     <label for="api_key">API Key</label>
     <input id="api_key" type="password" placeholder="sk-…" />
+    <div class="test-row">
+      <button id="test" class="secondary" type="button">Test connection</button>
+      <div id="test-status"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Permissions</div>
+    <p class="hint">
+      Tac needs Accessibility permission to notice which app you're using. Grant it for
+      Tac in System Settings → Privacy &amp; Security → Accessibility.
+    </p>
+    <button id="open-accessibility" class="secondary" type="button">Open Accessibility Settings</button>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Memory</div>
+    <p class="hint">
+      Tac remembers recent conversations on this Mac (stored locally in
+      <code>~/.tac/memory.json</code>). This erases them.
+    </p>
+    <div class="test-row">
+      <button id="clear-memory" class="secondary" type="button">Forget everything</button>
+      <div id="memory-status"></div>
+    </div>
   </div>
 
   <div class="card">
@@ -244,7 +307,17 @@
     <label for="behavior_interval_seconds">Behavior Interval (seconds)</label>
     <input id="behavior_interval_seconds" type="number" min="5" max="300" />
     <label for="system_prompt">System Prompt</label>
-    <textarea id="system_prompt" placeholder="Describe Clawd's personality…"></textarea>
+    <textarea id="system_prompt" placeholder="Describe Tac's personality…"></textarea>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Web access</div>
+    <p class="hint">
+      Tac can offer to open web pages, but only on the domains you list here (one per
+      line, e.g. <code>github.com</code>). Subdomains are included. Leave this blank to
+      stop Tac opening anything. Only <code>http</code>/<code>https</code> is ever allowed.
+    </p>
+    <textarea id="allowed_domains" placeholder="github.com&#10;wikipedia.org"></textarea>
   </div>
 
   <div class="actions">

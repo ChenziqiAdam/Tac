@@ -9,12 +9,30 @@ canvas.height = 80;
 
 const sprite = new SpriteEngine(canvas, ctx);
 const states = ['idle', 'walk-left', 'walk-right', 'talk', 'sleep', 'react', 'falling', 'landed'];
+// Optional mood-specific idle faces, loaded best-effort. Mood is always conveyed by
+// the runtime color tint; these sheets, when present, add a matching facial expression
+// while idle. Missing sheets simply fall back to the plain idle face.
+const MOOD_IDLES = ['happy', 'curious', 'sleepy', 'excited'];
+
+let currentMood = 'neutral';
+
+// Map a canonical state to the actual sheet to display: a non-neutral idle uses
+// its mood-face sheet when that sheet loaded, otherwise plain idle.
+function sheetFor(state) {
+  if (state === 'idle' && currentMood !== 'neutral') {
+    const moodSheet = `idle-${currentMood}`;
+    if (sprite.sheets[moodSheet]) return moodSheet;
+  }
+  return state;
+}
 
 const sm = new StateMachine((newState) => {
-  sprite.setState(newState);
+  sprite.setState(sheetFor(newState));
 });
 
-sprite.loadAll(states).then(() => {
+sprite.loadAll(states)
+  .then(() => Promise.allSettled(MOOD_IDLES.map((m) => sprite._loadSheet(`idle-${m}`))))
+  .then(() => {
   sm.transition('idle');
 
   let lastIgnore = true;
@@ -37,7 +55,17 @@ function loop(timestamp) {
   requestAnimationFrame(loop);
 }
 
+const VALID_MOODS = ['neutral', 'happy', 'curious', 'sleepy', 'excited'];
+
 ipcRenderer.on('pet-action', (event, action) => {
+  // Mood is sticky: internal transitions (e.g. arriving at a walk target) omit it,
+  // and we keep the last one rather than snapping back to neutral.
+  if (action.mood && VALID_MOODS.includes(action.mood)) {
+    currentMood = action.mood;
+    sprite.setMood(currentMood);
+  }
+  // sm.transition always re-fires onStateChange → sprite.setState(sheetFor(...)),
+  // so a fresh mood is reflected on the next idle without extra handling here.
   sm.transition(action.state);
 });
 

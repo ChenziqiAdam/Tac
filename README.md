@@ -14,14 +14,41 @@ An LLM-powered desktop pet for macOS. Tac lives on your screen, watches what you
 - Drag to reposition anywhere on screen
 - Configurable: bring your own model, API key, and system prompt
 
-## Setup
+## Install (end users)
 
-1. Install dependencies:
+1. Download the latest `Tac-<version>-arm64.dmg` (Apple Silicon) or
+   `Tac-<version>.dmg` (Intel) from the
+   [Releases page](../../releases/latest).
+
+2. Open the `.dmg` and drag **Tac** into your Applications folder.
+
+3. Tac is not yet code-signed or notarized (expected for v0.1), so macOS Gatekeeper
+   will block the first launch. Clear the quarantine flag:
+   ```bash
+   xattr -dr com.apple.quarantine /Applications/Tac.app
+   ```
+   Then open Tac normally. (Alternatively: right-click **Tac** → **Open** → **Open**.)
+
+4. On first launch Tac opens its **Settings** window. Enter your API **Base URL**,
+   **Model**, and **API Key**, click **Test connection** to confirm it works, then
+   **Save**.
+
+5. Grant **Accessibility** permission when prompted — or any time via the
+   **Open Accessibility Settings** button in Settings — so Tac can notice which app
+   you're using.
+
+## Run from source (developers)
+
+1. Install dependencies and start the app:
    ```bash
    npm install
+   npm start
    ```
 
-2. Create `~/.tac/config.json`:
+2. On first run, configure Tac in the **Settings** window (tray icon → Settings, or it
+   opens automatically when no API key is set).
+
+   Settings are stored in `~/.tac/config.json`. You can edit it directly if you prefer:
    ```json
    {
      "api_key": "YOUR_API_KEY",
@@ -32,10 +59,19 @@ An LLM-powered desktop pet for macOS. Tac lives on your screen, watches what you
    }
    ```
 
-3. Run:
-   ```bash
-   npm start
-   ```
+## Build the .dmg
+
+```bash
+npm install
+npm run icns    # regenerate assets/icon.icns from assets/icon.png (only if it changed)
+npm run dist    # outputs the .dmg to dist/
+```
+
+The build is **unsigned**. To enable code signing and notarization later, set
+`CSC_LINK` / `CSC_KEY_PASSWORD` (signing identity) and `APPLE_ID` /
+`APPLE_APP_SPECIFIC_PASSWORD` (notarization) in your environment, flip
+`mac.hardenedRuntime` to `true`, and add a `mac.notarize.teamId` entry in the
+`build` block of `package.json`.
 
 ## Privacy
 
@@ -45,10 +81,24 @@ endpoint you configure** (`base_url` in your config). This context includes:
 - the name of your currently active app and its front window title
 - the time of day
 - recent chat messages between you and Tac
+- a short running summary of your past conversations
 
 Nothing is sent anywhere else, and nothing is sent until you provide an API key
 and `base_url`. Choose an endpoint you trust — your data is handled according to
 that provider's policy.
+
+Tac keeps recent chat turns and that summary locally at `~/.tac/memory.json` so it
+remembers you across launches. Clear it any time with **Forget everything** in
+Settings → Memory, or by deleting the file.
+
+## Web access (optional)
+
+Tac can offer to open web pages, but this is **off by default** and strictly limited.
+In Settings → **Web access**, list the domains Tac may open (one per line). Tac can then
+only open `http`/`https` pages on those domains (and their subdomains); every other
+request is refused. The check runs in Tac's main process, not in the prompt, so a
+model — even one nudged by untrusted text like a window title — cannot open a site you
+did not allow. Leave the list blank to disable opening entirely.
 
 ## Roadmap
 
@@ -57,11 +107,11 @@ that provider's policy.
 - [x] Click-to-chat with speech bubble
 - [x] Drag to reposition
 - [x] Configurable LLM backend (OpenAI-compatible)
-- [ ] Open apps or URLs on command
+- [x] Open URLs on command (allowlisted domains only)
 - [ ] Interact with the active app (e.g., read clipboard, scroll, type)
 - [ ] Aware of screen content via vision model
-- [ ] Persistent memory across sessions
-- [ ] More animations and emotional states
+- [x] Persistent memory across sessions
+- [x] Mood-based expressions (color tint per emotional state)
 - [ ] Windows/Linux support
 
 ## License
